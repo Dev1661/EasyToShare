@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Easy To Share Clipboard</title>
     <style>
-        /* CSS Variables for Dark Mode Support */
+        /* CSS Variables for Dark Mode */
         :root {
             --bg-color: #f4f5f7;
             --text-color: #333;
@@ -13,6 +13,7 @@
             --border-color: #ccc;
             --secondary-text: #888;
             --input-bg: white;
+            --clip-bg: #e9ecef;
         }
 
         .dark-mode {
@@ -22,13 +23,14 @@
             --border-color: #333;
             --secondary-text: #aaa;
             --input-bg: #2c2d30;
+            --clip-bg: #3a3b3e;
         }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
-            max-width: 500px;
+            max-width: 600px;
             margin: 0 auto;
             padding: 20px;
             display: flex;
@@ -36,15 +38,12 @@
             align-items: center;
             height: 100vh;
             box-sizing: border-box;
-            transition: background-color 0.3s, color 0.3s;
+            transition: 0.3s;
         }
 
-        h1 {
-            margin-bottom: 30px;
-            text-align: center;
-        }
+        h1 { margin-bottom: 20px; text-align: center; }
 
-        /* Dark Mode Toggle Button */
+        /* Dark Mode Toggle */
         #theme-toggle {
             position: absolute;
             top: 20px;
@@ -53,22 +52,19 @@
             border: none;
             font-size: 24px;
             cursor: pointer;
-            transition: transform 0.2s;
         }
-        #theme-toggle:active { transform: scale(0.8); }
 
         /* Screen Management */
         .screen {
             display: none;
             width: 100%;
+            height: 100%;
             flex-direction: column;
             align-items: center;
         }
-        .screen.active {
-            display: flex;
-        }
+        .screen.active { display: flex; }
 
-        /* Home Screen Buttons */
+        /* Home Buttons */
         .btn-large {
             width: 100%;
             padding: 18px;
@@ -78,140 +74,91 @@
             font-size: 18px;
             font-weight: 600;
             cursor: pointer;
-            transition: 0.2s;
         }
-        .btn-host {
-            background-color: #007aff;
-            color: white;
-            box-shadow: 0 4px 10px rgba(0, 122, 255, 0.3);
-        }
-        .btn-join {
-            background-color: var(--box-bg);
-            color: var(--text-color);
-            border: 1px solid var(--border-color);
-        }
-        .btn-link {
-            background-color: #ff9500;
-            color: white;
-            margin-bottom: 10px;
-            box-shadow: 0 4px 10px rgba(255, 149, 0, 0.3);
-            display: none; /* Hidden by default */
-        }
+        .btn-host { background-color: #007aff; color: white; }
+        .btn-join { background-color: var(--box-bg); color: var(--text-color); border: 1px solid var(--border-color); }
         .btn-large:active { opacity: 0.8; transform: scale(0.98); }
 
-        /* Join Screen Code Boxes */
-        .code-container {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 25px;
-        }
+        /* Join Screen */
+        .code-container { display: flex; gap: 10px; margin-bottom: 25px; }
         .code-input {
-            width: 50px;
-            height: 60px;
-            font-size: 28px;
-            text-align: center;
-            border: 2px solid var(--border-color);
-            border-radius: 10px;
-            background: var(--input-bg);
-            color: var(--text-color);
+            width: 50px; height: 60px; font-size: 28px; text-align: center;
+            border: 2px solid var(--border-color); border-radius: 10px;
+            background: var(--input-bg); color: var(--text-color);
         }
         .code-input:focus { outline: none; border-color: #007aff; }
 
-        /* Room Screen */
+        /* Timer Banner */
+        #timer-banner {
+            display: none; width: 100%; background: #ff3b30; color: white;
+            text-align: center; padding: 10px; border-radius: 8px; font-weight: bold;
+            margin-bottom: 10px; box-shadow: 0 4px 6px rgba(255, 59, 48, 0.3);
+        }
+
+        /* Room Header */
         .room-header {
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
+            width: 100%; display: flex; justify-content: space-between;
+            align-items: center; margin-bottom: 10px;
         }
-        .room-code-display {
-            font-size: 24px;
-            font-weight: bold;
-            color: #007aff;
-            letter-spacing: 2px;
-        }
-        .btn-leave {
-            background: none;
-            border: none;
-            color: #ff3b30;
-            font-size: 16px;
-            cursor: pointer;
-            font-weight: 600;
-        }
-
-        /* QR Code Container */
-        #qr-container {
-            display: none;
-            text-align: center;
-            margin-bottom: 15px;
-            background: white;
-            padding: 10px;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        #qr-container p {
-            margin: 5px 0 0 0;
-            font-size: 12px;
-            color: #333;
-            font-weight: bold;
-        }
-
-        textarea {
-            width: 100%;
-            height: 250px;
-            padding: 15px;
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            font-size: 16px;
-            box-sizing: border-box;
-            resize: none;
-            margin-bottom: 15px;
-            background: var(--box-bg);
-            color: var(--text-color);
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            transition: background-color 0.3s, color 0.3s;
-        }
-        textarea:focus { outline: none; border-color: #007aff; }
-
-        /* Action Buttons Grid */
-        .action-buttons {
-            display: flex;
-            width: 100%;
-            gap: 10px;
-        }
-        .btn-action {
-            flex: 1;
-            padding: 12px 0;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            color: white;
-            transition: 0.2s;
-        }
-        .btn-copy { background-color: #34c759; }
-        .btn-paste { background-color: #007aff; }
-        .btn-clear { background-color: #ff3b30; }
-        .btn-action:active { opacity: 0.8; }
+        .room-code-display { font-size: 24px; font-weight: bold; color: #007aff; letter-spacing: 2px; }
         
-        .status-bar {
-            display: flex;
-            justify-content: space-between;
-            width: 100%;
-            margin-top: 15px;
-            font-size: 12px;
+        .header-actions { display: flex; gap: 10px; }
+        .btn-text-action { background: none; border: none; font-size: 14px; font-weight: bold; cursor: pointer; }
+        .btn-leave { color: #888; }
+        .btn-clear-all { color: #ff3b30; }
+
+        /* QR Code */
+        #qr-container {
+            display: none; text-align: center; margin-bottom: 15px;
+            background: white; padding: 10px; border-radius: 12px;
         }
-        .status-text { color: var(--secondary-text); }
-        .typing-indicator { color: #007aff; font-weight: bold; display: none; }
+        #qr-container p { margin: 5px 0 0 0; font-size: 12px; color: #333; font-weight: bold; }
+
+        /* Feed (Timeline) */
+        #feed {
+            width: 100%; flex-grow: 1; overflow-y: auto;
+            background: var(--box-bg); border: 1px solid var(--border-color);
+            border-radius: 12px 12px 0 0; padding: 15px; box-sizing: border-box;
+            display: flex; flex-direction: column; gap: 15px; border-bottom: none;
+        }
+        
+        .clip-bubble {
+            background: var(--clip-bg); padding: 12px; border-radius: 12px;
+            word-wrap: break-word; font-size: 16px; position: relative;
+        }
+        .clip-img { max-width: 100%; border-radius: 8px; margin-top: 5px; }
+        .clip-actions { display: flex; gap: 10px; margin-top: 8px; }
+        .clip-btn {
+            background: #007aff; color: white; border: none; padding: 6px 12px;
+            border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer;
+        }
+        .clip-btn.link-btn { background: #ff9500; }
+
+        /* Input Area */
+        .input-area {
+            width: 100%; display: flex; background: var(--box-bg);
+            border: 1px solid var(--border-color); border-radius: 0 0 12px 12px;
+            padding: 10px; box-sizing: border-box; gap: 10px; align-items: center;
+        }
+        #compose-text {
+            flex-grow: 1; border: none; background: transparent; color: var(--text-color);
+            font-size: 16px; resize: none; height: 40px; outline: none;
+        }
+        .btn-icon {
+            background: var(--clip-bg); border: none; font-size: 20px;
+            width: 45px; height: 45px; border-radius: 10px; cursor: pointer;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .btn-send { background: #007aff; color: white; }
+        
+        #file-input { display: none; }
+        .upload-status { width: 100%; text-align: center; font-size: 12px; color: #007aff; display: none; margin-top: 5px;}
 
     </style>
 </head>
 <body>
 
     <button id="theme-toggle">🌙</button>
-
     <h1>Web Clipboard</h1>
 
     <!-- SCREEN 1: HOME -->
@@ -229,43 +176,48 @@
             <input type="tel" class="code-input" maxlength="1" id="digit-3">
             <input type="tel" class="code-input" maxlength="1" id="digit-4">
         </div>
-        <button class="btn-leave" id="btn-cancel-join">Cancel</button>
+        <button class="btn-text-action btn-leave" id="btn-cancel-join">Cancel</button>
     </div>
 
-    <!-- SCREEN 3: ROOM -->
-    <div id="screen-room" class="screen">
+    <!-- SCREEN 3: ROOM (The Timeline) -->
+    <div id="screen-room" class="screen" style="height: 85vh;">
+        
+        <!-- Timer Warning -->
+        <div id="timer-banner">Warning: Room self-destructs in <span id="countdown-text">05:00</span> due to inactivity</div>
+
         <div class="room-header">
             <div>Code: <span class="room-code-display" id="display-code">----</span></div>
-            <button class="btn-leave" id="btn-leave-room">Leave</button>
+            <div class="header-actions">
+                <button class="btn-text-action btn-clear-all" id="btn-clear-all">Clear All</button>
+                <button class="btn-text-action btn-leave" id="btn-leave-room">Leave</button>
+            </div>
         </div>
 
-        <!-- QR Code Display for Host -->
         <div id="qr-container">
-            <img id="qr-code-img" src="" alt="QR Code" width="130" height="130">
+            <img id="qr-code-img" src="" alt="QR Code" width="120" height="120">
             <p>Scan to join instantly</p>
         </div>
         
-        <textarea id="shared-text" placeholder="Type or paste text here to share..."></textarea>
-        
-        <!-- Smart Link Button -->
-        <button id="btn-open-link" class="btn-large btn-link">🌐 Open Link</button>
+        <!-- Chat/Feed Area -->
+        <div id="feed">
+            <!-- Clips will load here -->
+        </div>
 
-        <div class="action-buttons">
-            <button class="btn-action btn-copy" id="btn-copy">Copy</button>
-            <button class="btn-action btn-paste" id="btn-paste">Paste</button>
-            <button class="btn-action btn-clear" id="btn-clear">Clear</button>
+        <!-- Input Box -->
+        <div class="input-area">
+            <input type="file" id="file-input" accept="image/*">
+            <button class="btn-icon" id="btn-attach">📷</button>
+            <textarea id="compose-text" placeholder="Type or paste (Ctrl+V) text/images..."></textarea>
+            <button class="btn-icon btn-send" id="btn-send">⬆️</button>
         </div>
-        
-        <div class="status-bar">
-            <div class="status-text" id="sync-status">🟢 Connected</div>
-            <div class="typing-indicator" id="typing-indicator">Someone is typing...</div>
-        </div>
+        <div id="upload-status" class="upload-status">Uploading image...</div>
     </div>
 
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getDatabase, ref, onValue, set, off } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+        import { getDatabase, ref, onValue, set, push, remove, off } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+        import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDCi33nEcPYW3k1AticNFE8lA_JaST73gg",
@@ -279,231 +231,287 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
+        const storage = getStorage(app);
 
-        // Global Variables
-        let currentRoomRef = null;
-        let typingRef = null;
-        let isTyping = false;
+        // Globals
         let currentCode = "";
-        let typingTimeout;
+        let clipsRef = null;
+        let activityRef = null;
+        
+        // Timer Globals
+        let lastActivityTime = Date.now();
+        let idleInterval = null;
 
         // UI Elements
-        const textArea = document.getElementById('shared-text');
-        const syncStatus = document.getElementById('sync-status');
-        const typingIndicator = document.getElementById('typing-indicator');
+        const feed = document.getElementById('feed');
+        const composeText = document.getElementById('compose-text');
+        const fileInput = document.getElementById('file-input');
+        const uploadStatus = document.getElementById('upload-status');
+        const timerBanner = document.getElementById('timer-banner');
+        const countdownText = document.getElementById('countdown-text');
         const codeInputs = document.querySelectorAll('.code-input');
-        const btnOpenLink = document.getElementById('btn-open-link');
 
-        // --- FEATURE 1: Dark Mode Logic ---
+        // --- Dark Mode ---
         const themeToggle = document.getElementById('theme-toggle');
-        const currentTheme = localStorage.getItem('theme');
-        if (currentTheme === 'dark') {
+        if (localStorage.getItem('theme') === 'dark') {
             document.body.classList.add('dark-mode');
             themeToggle.innerText = '☀️';
         }
-
         themeToggle.addEventListener('click', () => {
             document.body.classList.toggle('dark-mode');
             const isDark = document.body.classList.contains('dark-mode');
             localStorage.setItem('theme', isDark ? 'dark' : 'light');
             themeToggle.innerText = isDark ? '☀️' : '🌙';
         });
-        // ----------------------------------
 
         function showScreen(screenId) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(screenId).classList.add('active');
-            if(screenId === 'screen-join') {
-                codeInputs[0].focus();
-                codeInputs.forEach(input => input.value = ''); 
+        }
+
+        // --- Idle Timer Logic (The Screensaver) ---
+        function reportActivity() {
+            if (!currentCode || !activityRef) return;
+            const now = Date.now();
+            // Only write to Firebase if it's been more than 5 seconds since last report to save data
+            if (now - lastActivityTime > 5000) {
+                lastActivityTime = now;
+                set(activityRef, now);
             }
         }
 
-        // Host Logic with QR Code Generation
-        function hostRoom() {
-            const hostBtn = document.getElementById('btn-host-room');
-            const originalText = hostBtn.innerText;
-            hostBtn.innerText = "Creating...";
-            
-            currentCode = Math.floor(1000 + Math.random() * 9000).toString();
-            
-            const newRoomRef = ref(db, 'rooms/' + currentCode);
-            set(newRoomRef, "Waiting for text...")
-                .then(() => {
-                    document.getElementById('display-code').innerText = currentCode;
-                    hostBtn.innerText = originalText;
-                    
-                    // --- FEATURE 2: QR Code Generation ---
-                    // Generates a link like: https://dev1661.github.io/EasyToShare/?room=1234
-                    const joinUrl = window.location.origin + window.location.pathname + "?room=" + currentCode;
-                    document.getElementById('qr-code-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl)}`;
-                    document.getElementById('qr-container').style.display = 'block';
-                    // -------------------------------------
+        function checkIdleStatus() {
+            const now = Date.now();
+            const elapsed = now - lastActivityTime;
+            const thirtyMins = 30 * 60 * 1000;
+            const twentyFiveMins = 25 * 60 * 1000;
 
-                    connectToRoom(currentCode);
-                    showScreen('screen-room');
-                })
-                .catch((error) => {
-                    hostBtn.innerText = originalText;
-                    alert("Error creating room! Details: " + error.message);
-                });
+            if (elapsed >= thirtyMins) {
+                // Time's up! Nuke the room.
+                remove(ref(db, 'rooms/' + currentCode));
+                alert("Room self-destructed due to 30 minutes of inactivity to protect your data.");
+                leaveRoom();
+            } else if (elapsed >= twentyFiveMins) {
+                // Show Warning Banner
+                timerBanner.style.display = 'block';
+                const remaining = thirtyMins - elapsed;
+                const mins = Math.floor(remaining / 60000);
+                const secs = Math.floor((remaining % 60000) / 1000);
+                countdownText.innerText = `${mins}:${secs.toString().padStart(2, '0')}`;
+            } else {
+                timerBanner.style.display = 'none';
+            }
         }
 
-        function leaveRoom() {
-            if (currentRoomRef) off(currentRoomRef);
-            if (typingRef) off(typingRef);
-            textArea.value = "";
-            document.getElementById('qr-container').style.display = 'none';
-            btnOpenLink.style.display = 'none';
+        // Listen for ANY physical movement to reset the timer
+        document.addEventListener('mousemove', reportActivity);
+        document.addEventListener('keydown', reportActivity);
+        document.addEventListener('touchstart', reportActivity);
+        // ------------------------------------------
+
+        // --- Room Management ---
+        function hostRoom() {
+            currentCode = Math.floor(1000 + Math.random() * 9000).toString();
             
-            // Clear URL if joined via QR code
-            window.history.pushState({}, document.title, window.location.pathname);
-            showScreen('screen-home');
+            // Generate QR Code
+            const joinUrl = window.location.origin + window.location.pathname + "?room=" + currentCode;
+            document.getElementById('qr-code-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(joinUrl)}`;
+            document.getElementById('qr-container').style.display = 'block';
+
+            connectToRoom(currentCode);
+            showScreen('screen-room');
+        }
+
+        // Auto-Join from QR
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('room') && urlParams.get('room').length === 4) {
+            connectToRoom(urlParams.get('room'));
+            showScreen('screen-room');
         }
 
         document.getElementById('btn-host-room').addEventListener('click', hostRoom);
-        document.getElementById('btn-goto-join').addEventListener('click', () => showScreen('screen-join'));
+        document.getElementById('btn-goto-join').addEventListener('click', () => {
+            showScreen('screen-join');
+            codeInputs[0].focus();
+        });
         document.getElementById('btn-cancel-join').addEventListener('click', () => showScreen('screen-home'));
-        document.getElementById('btn-leave-room').addEventListener('click', leaveRoom);
-
-        // Join Logic (Manual entry)
+        
+        // Manual Join
         codeInputs.forEach((input, index) => {
             input.addEventListener('input', (e) => {
                 if (e.target.value.length === 1 && index < 3) codeInputs[index + 1].focus();
-                
                 let enteredCode = "";
                 codeInputs.forEach(inp => enteredCode += inp.value);
-                
                 if (enteredCode.length === 4) {
-                    currentCode = enteredCode;
-                    document.getElementById('display-code').innerText = currentCode;
-                    connectToRoom(currentCode);
+                    connectToRoom(enteredCode);
                     showScreen('screen-room');
                 }
             });
-
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Backspace' && e.target.value === '' && index > 0) codeInputs[index - 1].focus();
             });
         });
 
-        // --- FEATURE 3: Auto-Join from QR Code URL ---
-        const urlParams = new URLSearchParams(window.location.search);
-        const roomParam = urlParams.get('room');
-        if (roomParam && roomParam.length === 4) {
-            currentCode = roomParam;
-            document.getElementById('display-code').innerText = currentCode;
-            document.getElementById('qr-container').style.display = 'none'; // Hide QR if they just joined
-            connectToRoom(currentCode);
-            showScreen('screen-room');
-        }
-        // ---------------------------------------------
-
-        // Firebase Sync Connection
-        function connectToRoom(roomCode) {
-            currentRoomRef = ref(db, 'rooms/' + roomCode);
-            typingRef = ref(db, 'typing/' + roomCode);
+        // Connection
+        function connectToRoom(code) {
+            currentCode = code;
+            document.getElementById('display-code').innerText = code;
             
-            // Listen for text updates
-            onValue(currentRoomRef, (snapshot) => {
-                if (!isTyping) {
-                    const data = snapshot.val();
-                    if(data !== "Waiting for text...") {
-                        textArea.value = data || "";
-                        checkIfLink(data || ""); // Check for Smart Link
-                    }
-                }
-            }, (error) => {
-                alert("Connection lost: " + error.message);
-                leaveRoom();
+            clipsRef = ref(db, 'rooms/' + code + '/clips');
+            activityRef = ref(db, 'rooms/' + code + '/lastActivity');
+
+            // Force activity update on join
+            set(activityRef, Date.now());
+
+            // Listen for other device's activity to sync the timer
+            onValue(activityRef, (snapshot) => {
+                if (snapshot.exists()) lastActivityTime = snapshot.val();
             });
 
-            // Listen for typing indicator
-            onValue(typingRef, (snapshot) => {
-                if (snapshot.val() === true && !isTyping) {
-                    typingIndicator.style.display = 'block';
-                } else {
-                    typingIndicator.style.display = 'none';
+            // Start the Screensaver checker
+            idleInterval = setInterval(checkIdleStatus, 1000);
+
+            // Listen for new clips
+            onValue(clipsRef, (snapshot) => {
+                feed.innerHTML = '';
+                const data = snapshot.val();
+                if (data) {
+                    Object.values(data).forEach(clip => addClipToUI(clip));
+                    feed.scrollTop = feed.scrollHeight; // Auto-scroll to bottom
                 }
             });
         }
 
-        // --- FEATURE 4: Smart Link Detector ---
-        function checkIfLink(text) {
-            text = text.trim();
-            // Basic check if it looks like a URL
-            const urlPattern = /^(https?:\/\/[^\s]+)|(www\.[^\s]+)$/i;
-            if (urlPattern.test(text)) {
-                btnOpenLink.style.display = 'block';
-                btnOpenLink.onclick = () => {
-                    let finalUrl = text;
-                    if (!finalUrl.startsWith('http')) finalUrl = 'https://' + finalUrl;
-                    window.open(finalUrl, '_blank');
+        function leaveRoom() {
+            if (clipsRef) off(clipsRef);
+            if (activityRef) off(activityRef);
+            clearInterval(idleInterval);
+            currentCode = "";
+            document.getElementById('qr-container').style.display = 'none';
+            timerBanner.style.display = 'none';
+            window.history.pushState({}, document.title, window.location.pathname); // Clear URL
+            showScreen('screen-home');
+        }
+        document.getElementById('btn-leave-room').addEventListener('click', leaveRoom);
+
+        // Clear All Button
+        document.getElementById('btn-clear-all').addEventListener('click', () => {
+            if (confirm("Delete all history?")) {
+                remove(clipsRef);
+            }
+        });
+
+        // --- Sending Clips (Text & Image) ---
+        
+        function sendTextClip() {
+            const text = composeText.value.trim();
+            if (text === "") return;
+            push(clipsRef, { type: 'text', content: text, timestamp: Date.now() });
+            composeText.value = "";
+            reportActivity();
+        }
+        document.getElementById('btn-send').addEventListener('click', sendTextClip);
+        
+        // Send on Enter key
+        composeText.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendTextClip();
+            }
+        });
+
+        // Upload Photo Button (For iPhone)
+        document.getElementById('btn-attach').addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files[0]) uploadImageFile(e.target.files[0]);
+        });
+
+        // Paste Event (For Windows Ctrl+V screenshots)
+        document.addEventListener('paste', (e) => {
+            if (!currentCode) return;
+            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            for (let item of items) {
+                if (item.type.indexOf('image') === 0) {
+                    e.preventDefault(); // Stop image from pasting into text box as weird text
+                    const file = item.getAsFile();
+                    uploadImageFile(file);
+                }
+            }
+        });
+
+        function uploadImageFile(file) {
+            uploadStatus.style.display = 'block';
+            const uniqueName = Date.now() + '-' + file.name;
+            const imageRef = storageRef(storage, `rooms/${currentCode}/${uniqueName}`);
+            
+            uploadBytes(imageRef, file).then((snapshot) => {
+                getDownloadURL(snapshot.ref).then((downloadURL) => {
+                    push(clipsRef, { type: 'image', content: downloadURL, timestamp: Date.now() });
+                    uploadStatus.style.display = 'none';
+                    reportActivity();
+                });
+            }).catch(err => {
+                alert("Upload failed! Did you enable Firebase Storage?");
+                uploadStatus.style.display = 'none';
+            });
+        }
+
+        // --- UI Builder ---
+        function addClipToUI(clip) {
+            const bubble = document.createElement('div');
+            bubble.className = 'clip-bubble';
+
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'clip-actions';
+
+            if (clip.type === 'text') {
+                bubble.innerText = clip.content;
+
+                // Copy Button
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'clip-btn';
+                copyBtn.innerText = 'Copy';
+                copyBtn.onclick = () => {
+                    navigator.clipboard.writeText(clip.content);
+                    copyBtn.innerText = 'Copied!';
+                    setTimeout(() => copyBtn.innerText = 'Copy', 2000);
                 };
-            } else {
-                btnOpenLink.style.display = 'none';
-            }
-        }
-        // --------------------------------------
+                actionsDiv.appendChild(copyBtn);
 
-        textArea.addEventListener('input', (e) => {
-            updateFirebase(e.target.value);
-            
-            // Trigger "Is Typing" for 1.5 seconds
-            if (typingRef) {
-                set(typingRef, true);
-                clearTimeout(typingTimeout);
-                typingTimeout = setTimeout(() => {
-                    set(typingRef, false);
-                }, 1500);
-            }
-        });
+                // Smart Link Check
+                const urlPattern = /^(https?:\/\/[^\s]+)|(www\.[^\s]+)$/i;
+                if (urlPattern.test(clip.content.trim())) {
+                    const linkBtn = document.createElement('button');
+                    linkBtn.className = 'clip-btn link-btn';
+                    linkBtn.innerText = 'Open Link';
+                    linkBtn.onclick = () => {
+                        let finalUrl = clip.content.trim();
+                        if (!finalUrl.startsWith('http')) finalUrl = 'https://' + finalUrl;
+                        window.open(finalUrl, '_blank');
+                    };
+                    actionsDiv.appendChild(linkBtn);
+                }
 
-        function updateFirebase(text) {
-            if (!currentRoomRef) return;
-            isTyping = true;
-            syncStatus.innerText = "🔄 Syncing...";
-            checkIfLink(text); // Check local typing for links too
-            
-            set(currentRoomRef, text).then(() => {
-                isTyping = false;
-                syncStatus.innerText = "🟢 Synced";
-            }).catch((error) => {
-                syncStatus.innerText = "❌ Sync Error";
-            });
-        }
+                bubble.appendChild(actionsDiv);
 
-        // Action Buttons
-        document.getElementById('btn-copy').addEventListener('click', () => {
-            navigator.clipboard.writeText(textArea.value).then(() => {
-                const btn = document.getElementById('btn-copy');
-                btn.innerText = "Copied!";
-                setTimeout(() => btn.innerText = "Copy", 2000);
-            });
-        });
+            } else if (clip.type === 'image') {
+                const img = document.createElement('img');
+                img.src = clip.content;
+                img.className = 'clip-img';
+                bubble.appendChild(img);
 
-        document.getElementById('btn-paste').addEventListener('click', async () => {
-            try {
-                const text = await navigator.clipboard.readText();
-                textArea.value = text;
-                updateFirebase(text); 
+                // Download Button for Image
+                const downBtn = document.createElement('button');
+                downBtn.className = 'clip-btn';
+                downBtn.innerText = 'Open Full Size';
+                downBtn.onclick = () => window.open(clip.content, '_blank');
                 
-                const btn = document.getElementById('btn-paste');
-                btn.innerText = "Pasted!";
-                setTimeout(() => btn.innerText = "Paste", 2000);
-            } catch (err) {
-                alert("Please paste manually. Your browser blocks automatic pasting.");
+                actionsDiv.appendChild(downBtn);
+                bubble.appendChild(actionsDiv);
             }
-        });
 
-        document.getElementById('btn-clear').addEventListener('click', () => {
-            textArea.value = "";
-            updateFirebase(""); 
-            
-            const btn = document.getElementById('btn-clear');
-            btn.innerText = "Cleared!";
-            setTimeout(() => btn.innerText = "Clear", 2000);
-        });
+            feed.appendChild(bubble);
+        }
 
     </script>
 </body>
