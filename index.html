@@ -151,7 +151,6 @@
 
     <!-- SCREEN 1: HOME -->
     <div id="screen-home" class="screen active">
-        <!-- Notice the onclick commands are gone, replaced with unique IDs -->
         <button class="btn-large btn-host" id="btn-host-room">Host a Room</button>
         <button class="btn-large btn-join" id="btn-goto-join">Join a Room</button>
     </div>
@@ -182,7 +181,7 @@
             <button class="btn-action btn-paste" id="btn-paste">Paste</button>
             <button class="btn-action btn-clear" id="btn-clear">Clear</button>
         </div>
-        <div class="status-text" id="sync-status">🟢 Synced</div>
+        <div class="status-text" id="sync-status">🟢 Connected</div>
     </div>
 
     <!-- Firebase SDKs -->
@@ -212,7 +211,6 @@
         const syncStatus = document.getElementById('sync-status');
         const codeInputs = document.querySelectorAll('.code-input');
 
-        // Functions to change screens and handle rooms
         function showScreen(screenId) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(screenId).classList.add('active');
@@ -222,33 +220,41 @@
             }
         }
 
+        // --- NEW: Error Handling Added to Host ---
         function hostRoom() {
+            const hostBtn = document.getElementById('btn-host-room');
+            const originalText = hostBtn.innerText;
+            hostBtn.innerText = "Creating...";
+            
             currentCode = Math.floor(1000 + Math.random() * 9000).toString();
-            document.getElementById('display-code').innerText = currentCode;
             
             const newRoomRef = ref(db, 'rooms/' + currentCode);
-            set(newRoomRef, "").then(() => {
-                connectToRoom(currentCode);
-                showScreen('screen-room');
-            });
+            set(newRoomRef, "")
+                .then(() => {
+                    document.getElementById('display-code').innerText = currentCode;
+                    hostBtn.innerText = originalText;
+                    connectToRoom(currentCode);
+                    showScreen('screen-room');
+                })
+                .catch((error) => {
+                    hostBtn.innerText = originalText;
+                    alert("Error creating room! Please check your Firebase Database Rules. Error: " + error.message);
+                });
         }
 
         function leaveRoom() {
             if (currentRoomRef) {
-                off(currentRoomRef); // Stop listening to this room
+                off(currentRoomRef);
             }
             textArea.value = "";
             showScreen('screen-home');
         }
 
-        // --- NEW: Event Listeners for the Navigation Buttons ---
         document.getElementById('btn-host-room').addEventListener('click', hostRoom);
         document.getElementById('btn-goto-join').addEventListener('click', () => showScreen('screen-join'));
         document.getElementById('btn-cancel-join').addEventListener('click', () => showScreen('screen-home'));
         document.getElementById('btn-leave-room').addEventListener('click', leaveRoom);
-        // -------------------------------------------------------
 
-        // Join Logic - Auto advance boxes
         codeInputs.forEach((input, index) => {
             input.addEventListener('input', (e) => {
                 if (e.target.value.length === 1 && index < 3) {
@@ -273,7 +279,7 @@
             });
         });
 
-        // Firebase Room Connection
+        // --- NEW: Error Handling added to Syncing ---
         function connectToRoom(roomCode) {
             currentRoomRef = ref(db, 'rooms/' + roomCode);
             
@@ -282,10 +288,12 @@
                     const data = snapshot.val();
                     textArea.value = data || "";
                 }
+            }, (error) => {
+                alert("Connection lost or denied by database: " + error.message);
+                leaveRoom();
             });
         }
 
-        // Sync text when typing manually
         textArea.addEventListener('input', (e) => {
             updateFirebase(e.target.value);
         });
@@ -298,14 +306,13 @@
             set(currentRoomRef, text).then(() => {
                 isTyping = false;
                 syncStatus.innerText = "🟢 Synced";
-            }).catch(() => {
+            }).catch((error) => {
                 syncStatus.innerText = "❌ Sync Error";
+                alert("Could not sync text. Error: " + error.message);
             });
         }
 
-        // --- Action Buttons ---
-
-        // Copy Button
+        // Action Buttons
         document.getElementById('btn-copy').addEventListener('click', () => {
             navigator.clipboard.writeText(textArea.value).then(() => {
                 const btn = document.getElementById('btn-copy');
@@ -314,7 +321,6 @@
             });
         });
 
-        // Paste Button
         document.getElementById('btn-paste').addEventListener('click', async () => {
             try {
                 const text = await navigator.clipboard.readText();
@@ -329,7 +335,6 @@
             }
         });
 
-        // Clear Button
         document.getElementById('btn-clear').addEventListener('click', () => {
             textArea.value = "";
             updateFirebase(""); 
