@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Easy To Share Clipboard</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f5f7;
+            color: #333;
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            margin-bottom: 30px;
+            text-align: center;
+            color: #1a1a1a;
+        }
+
+        /* Screen Management */
+        .screen {
+            display: none;
+            width: 100%;
+            flex-direction: column;
+            align-items: center;
+        }
+        .screen.active {
+            display: flex;
+        }
+
+        /* Home Screen Buttons */
+        .btn-large {
+            width: 100%;
+            padding: 18px;
+            margin-bottom: 15px;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-host {
+            background-color: #007aff;
+            color: white;
+            box-shadow: 0 4px 10px rgba(0, 122, 255, 0.3);
+        }
+        .btn-join {
+            background-color: #e5e5ea;
+            color: #333;
+        }
+        .btn-large:active { opacity: 0.8; transform: scale(0.98); }
+
+        /* Join Screen Code Boxes */
+        .code-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+        .code-input {
+            width: 50px;
+            height: 60px;
+            font-size: 28px;
+            text-align: center;
+            border: 2px solid #ccc;
+            border-radius: 10px;
+            background: white;
+        }
+        .code-input:focus {
+            outline: none;
+            border-color: #007aff;
+        }
+
+        /* Room Screen */
+        .room-header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .room-code-display {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007aff;
+            letter-spacing: 2px;
+        }
+        .btn-leave {
+            background: none;
+            border: none;
+            color: #ff3b30;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        textarea {
+            width: 100%;
+            height: 250px;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 12px;
+            font-size: 16px;
+            box-sizing: border-box;
+            resize: none;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        textarea:focus { outline: none; border-color: #007aff; }
+
+        /* Action Buttons Grid */
+        .action-buttons {
+            display: flex;
+            width: 100%;
+            gap: 10px;
+        }
+        .btn-action {
+            flex: 1;
+            padding: 12px 0;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            color: white;
+            transition: 0.2s;
+        }
+        .btn-copy { background-color: #34c759; }
+        .btn-paste { background-color: #007aff; }
+        .btn-clear { background-color: #ff3b30; }
+        .btn-action:active { opacity: 0.8; }
+        
+        .status-text {
+            margin-top: 15px;
+            font-size: 12px;
+            color: #888;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>Web Clipboard</h1>
+
+    <!-- SCREEN 1: HOME -->
+    <div id="screen-home" class="screen active">
+        <button class="btn-large btn-host" onclick="hostRoom()">Host a Room</button>
+        <button class="btn-large btn-join" onclick="showScreen('screen-join')">Join a Room</button>
+    </div>
+
+    <!-- SCREEN 2: JOIN -->
+    <div id="screen-join" class="screen">
+        <h3>Enter 4-Digit Code</h3>
+        <div class="code-container">
+            <input type="tel" class="code-input" maxlength="1" id="digit-1">
+            <input type="tel" class="code-input" maxlength="1" id="digit-2">
+            <input type="tel" class="code-input" maxlength="1" id="digit-3">
+            <input type="tel" class="code-input" maxlength="1" id="digit-4">
+        </div>
+        <button class="btn-leave" onclick="showScreen('screen-home')">Cancel</button>
+    </div>
+
+    <!-- SCREEN 3: ROOM -->
+    <div id="screen-room" class="screen">
+        <div class="room-header">
+            <div>Code: <span class="room-code-display" id="display-code">----</span></div>
+            <button class="btn-leave" onclick="leaveRoom()">Leave</button>
+        </div>
+        
+        <textarea id="shared-text" placeholder="Type or paste text here to share..."></textarea>
+        
+        <div class="action-buttons">
+            <button class="btn-action btn-copy" id="btn-copy">Copy</button>
+            <button class="btn-action btn-paste" id="btn-paste">Paste</button>
+            <button class="btn-action btn-clear" id="btn-clear">Clear</button>
+        </div>
+        <div class="status-text" id="sync-status">🟢 Synced</div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getDatabase, ref, onValue, set, off } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDCi33nEcPYW3k1AticNFE8lA_JaST73gg",
+            authDomain: "easytoshare.firebaseapp.com",
+            projectId: "easytoshare",
+            storageBucket: "easytoshare.firebasestorage.app",
+            messagingSenderId: "792674310312",
+            appId: "1:792674310312:web:046f3ad5cb89fa1e018a9d"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // Global Variables
+        let currentRoomRef = null;
+        let isTyping = false;
+        let currentCode = "";
+
+        // UI Elements
+        const textArea = document.getElementById('shared-text');
+        const syncStatus = document.getElementById('sync-status');
+        const codeInputs = document.querySelectorAll('.code-input');
+
+        // Screen Navigation
+        window.showScreen = function(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+            if(screenId === 'screen-join') {
+                codeInputs[0].focus();
+                codeInputs.forEach(input => input.value = ''); // clear previous inputs
+            }
+        }
+
+        // Host Logic
+        window.hostRoom = function() {
+            // Generate random 4 digit code (1000 - 9999)
+            currentCode = Math.floor(1000 + Math.random() * 9000).toString();
+            document.getElementById('display-code').innerText = currentCode;
+            
+            // Wipe any old data that might have existed at this number
+            const newRoomRef = ref(db, 'rooms/' + currentCode);
+            set(newRoomRef, "").then(() => {
+                connectToRoom(currentCode);
+                window.showScreen('screen-room');
+            });
+        }
+
+        // Join Logic - Auto advance boxes
+        codeInputs.forEach((input, index) => {
+            input.addEventListener('input', (e) => {
+                // Move to next box if a number is typed
+                if (e.target.value.length === 1 && index < 3) {
+                    codeInputs[index + 1].focus();
+                }
+                
+                // Check if all 4 are filled
+                let enteredCode = "";
+                codeInputs.forEach(inp => enteredCode += inp.value);
+                
+                if (enteredCode.length === 4) {
+                    currentCode = enteredCode;
+                    document.getElementById('display-code').innerText = currentCode;
+                    connectToRoom(currentCode);
+                    window.showScreen('screen-room');
+                }
+            });
+
+            // Handle backspace to go to previous box
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && e.target.value === '' && index > 0) {
+                    codeInputs[index - 1].focus();
+                }
+            });
+        });
+
+        // Firebase Room Connection
+        function connectToRoom(roomCode) {
+            currentRoomRef = ref(db, 'rooms/' + roomCode);
+            
+            // Listen for changes from the other device
+            onValue(currentRoomRef, (snapshot) => {
+                if (!isTyping) {
+                    const data = snapshot.val();
+                    textArea.value = data || "";
+                }
+            });
+        }
+
+        // Leave Room
+        window.leaveRoom = function() {
+            if (currentRoomRef) {
+                off(currentRoomRef); // Stop listening to this room
+            }
+            textArea.value = "";
+            window.showScreen('screen-home');
+        }
+
+        // Sync text when typing manually
+        textArea.addEventListener('input', (e) => {
+            updateFirebase(e.target.value);
+        });
+
+        function updateFirebase(text) {
+            if (!currentRoomRef) return;
+            isTyping = true;
+            syncStatus.innerText = "🔄 Syncing...";
+            
+            set(currentRoomRef, text).then(() => {
+                isTyping = false;
+                syncStatus.innerText = "🟢 Synced";
+            }).catch(() => {
+                syncStatus.innerText = "❌ Sync Error";
+            });
+        }
+
+        // --- BUTTON ACTIONS ---
+
+        // 1. Copy Button
+        document.getElementById('btn-copy').addEventListener('click', () => {
+            navigator.clipboard.writeText(textArea.value).then(() => {
+                const btn = document.getElementById('btn-copy');
+                btn.innerText = "Copied!";
+                setTimeout(() => btn.innerText = "Copy", 2000);
+            });
+        });
+
+        // 2. Paste Button
+        document.getElementById('btn-paste').addEventListener('click', async () => {
+            try {
+                // Some browsers prompt the user for permission the first time this runs
+                const text = await navigator.clipboard.readText();
+                textArea.value = text;
+                updateFirebase(text); // Force sync to the other device
+                
+                const btn = document.getElementById('btn-paste');
+                btn.innerText = "Pasted!";
+                setTimeout(() => btn.innerText = "Paste", 2000);
+            } catch (err) {
+                alert("Please paste manually. Your browser blocks automatic pasting.");
+            }
+        });
+
+        // 3. Clear Button
+        document.getElementById('btn-clear').addEventListener('click', () => {
+            textArea.value = "";
+            updateFirebase(""); // Delete text on Firebase for both devices
+            
+            const btn = document.getElementById('btn-clear');
+            btn.innerText = "Cleared!";
+            setTimeout(() => btn.innerText = "Clear", 2000);
+        });
+
+    </script>
+</body>
+</html>
