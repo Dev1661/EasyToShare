@@ -5,10 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Easy To Share Clipboard</title>
     <style>
+        /* CSS Variables for Dark Mode Support */
+        :root {
+            --bg-color: #f4f5f7;
+            --text-color: #333;
+            --box-bg: white;
+            --border-color: #ccc;
+            --secondary-text: #888;
+            --input-bg: white;
+        }
+
+        .dark-mode {
+            --bg-color: #121212;
+            --text-color: #e4e5e8;
+            --box-bg: #1e1e1e;
+            --border-color: #333;
+            --secondary-text: #aaa;
+            --input-bg: #2c2d30;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f4f5f7;
-            color: #333;
+            background-color: var(--bg-color);
+            color: var(--text-color);
             max-width: 500px;
             margin: 0 auto;
             padding: 20px;
@@ -17,13 +36,26 @@
             align-items: center;
             height: 100vh;
             box-sizing: border-box;
+            transition: background-color 0.3s, color 0.3s;
         }
 
         h1 {
             margin-bottom: 30px;
             text-align: center;
-            color: #1a1a1a;
         }
+
+        /* Dark Mode Toggle Button */
+        #theme-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        #theme-toggle:active { transform: scale(0.8); }
 
         /* Screen Management */
         .screen {
@@ -54,8 +86,16 @@
             box-shadow: 0 4px 10px rgba(0, 122, 255, 0.3);
         }
         .btn-join {
-            background-color: #e5e5ea;
-            color: #333;
+            background-color: var(--box-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+        }
+        .btn-link {
+            background-color: #ff9500;
+            color: white;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 10px rgba(255, 149, 0, 0.3);
+            display: none; /* Hidden by default */
         }
         .btn-large:active { opacity: 0.8; transform: scale(0.98); }
 
@@ -70,14 +110,12 @@
             height: 60px;
             font-size: 28px;
             text-align: center;
-            border: 2px solid #ccc;
+            border: 2px solid var(--border-color);
             border-radius: 10px;
-            background: white;
+            background: var(--input-bg);
+            color: var(--text-color);
         }
-        .code-input:focus {
-            outline: none;
-            border-color: #007aff;
-        }
+        .code-input:focus { outline: none; border-color: #007aff; }
 
         /* Room Screen */
         .room-header {
@@ -102,17 +140,37 @@
             font-weight: 600;
         }
 
+        /* QR Code Container */
+        #qr-container {
+            display: none;
+            text-align: center;
+            margin-bottom: 15px;
+            background: white;
+            padding: 10px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        #qr-container p {
+            margin: 5px 0 0 0;
+            font-size: 12px;
+            color: #333;
+            font-weight: bold;
+        }
+
         textarea {
             width: 100%;
             height: 250px;
             padding: 15px;
-            border: 1px solid #ccc;
+            border: 1px solid var(--border-color);
             border-radius: 12px;
             font-size: 16px;
             box-sizing: border-box;
             resize: none;
             margin-bottom: 15px;
+            background: var(--box-bg);
+            color: var(--text-color);
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: background-color 0.3s, color 0.3s;
         }
         textarea:focus { outline: none; border-color: #007aff; }
 
@@ -138,14 +196,21 @@
         .btn-clear { background-color: #ff3b30; }
         .btn-action:active { opacity: 0.8; }
         
-        .status-text {
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
             margin-top: 15px;
             font-size: 12px;
-            color: #888;
         }
+        .status-text { color: var(--secondary-text); }
+        .typing-indicator { color: #007aff; font-weight: bold; display: none; }
+
     </style>
 </head>
 <body>
+
+    <button id="theme-toggle">🌙</button>
 
     <h1>Web Clipboard</h1>
 
@@ -173,15 +238,28 @@
             <div>Code: <span class="room-code-display" id="display-code">----</span></div>
             <button class="btn-leave" id="btn-leave-room">Leave</button>
         </div>
+
+        <!-- QR Code Display for Host -->
+        <div id="qr-container">
+            <img id="qr-code-img" src="" alt="QR Code" width="130" height="130">
+            <p>Scan to join instantly</p>
+        </div>
         
         <textarea id="shared-text" placeholder="Type or paste text here to share..."></textarea>
         
+        <!-- Smart Link Button -->
+        <button id="btn-open-link" class="btn-large btn-link">🌐 Open Link</button>
+
         <div class="action-buttons">
             <button class="btn-action btn-copy" id="btn-copy">Copy</button>
             <button class="btn-action btn-paste" id="btn-paste">Paste</button>
             <button class="btn-action btn-clear" id="btn-clear">Clear</button>
         </div>
-        <div class="status-text" id="sync-status">🟢 Connected</div>
+        
+        <div class="status-bar">
+            <div class="status-text" id="sync-status">🟢 Connected</div>
+            <div class="typing-indicator" id="typing-indicator">Someone is typing...</div>
+        </div>
     </div>
 
     <!-- Firebase SDKs -->
@@ -189,7 +267,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getDatabase, ref, onValue, set, off } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-        // THE MISSING LINK HAS BEEN ADDED HERE: databaseURL
         const firebaseConfig = {
             apiKey: "AIzaSyDCi33nEcPYW3k1AticNFE8lA_JaST73gg",
             authDomain: "easytoshare.firebaseapp.com",
@@ -205,13 +282,33 @@
 
         // Global Variables
         let currentRoomRef = null;
+        let typingRef = null;
         let isTyping = false;
         let currentCode = "";
+        let typingTimeout;
 
         // UI Elements
         const textArea = document.getElementById('shared-text');
         const syncStatus = document.getElementById('sync-status');
+        const typingIndicator = document.getElementById('typing-indicator');
         const codeInputs = document.querySelectorAll('.code-input');
+        const btnOpenLink = document.getElementById('btn-open-link');
+
+        // --- FEATURE 1: Dark Mode Logic ---
+        const themeToggle = document.getElementById('theme-toggle');
+        const currentTheme = localStorage.getItem('theme');
+        if (currentTheme === 'dark') {
+            document.body.classList.add('dark-mode');
+            themeToggle.innerText = '☀️';
+        }
+
+        themeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            themeToggle.innerText = isDark ? '☀️' : '🌙';
+        });
+        // ----------------------------------
 
         function showScreen(screenId) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -222,7 +319,7 @@
             }
         }
 
-        // Host Logic with Error Alert
+        // Host Logic with QR Code Generation
         function hostRoom() {
             const hostBtn = document.getElementById('btn-host-room');
             const originalText = hostBtn.innerText;
@@ -235,6 +332,14 @@
                 .then(() => {
                     document.getElementById('display-code').innerText = currentCode;
                     hostBtn.innerText = originalText;
+                    
+                    // --- FEATURE 2: QR Code Generation ---
+                    // Generates a link like: https://dev1661.github.io/EasyToShare/?room=1234
+                    const joinUrl = window.location.origin + window.location.pathname + "?room=" + currentCode;
+                    document.getElementById('qr-code-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl)}`;
+                    document.getElementById('qr-container').style.display = 'block';
+                    // -------------------------------------
+
                     connectToRoom(currentCode);
                     showScreen('screen-room');
                 })
@@ -245,10 +350,14 @@
         }
 
         function leaveRoom() {
-            if (currentRoomRef) {
-                off(currentRoomRef);
-            }
+            if (currentRoomRef) off(currentRoomRef);
+            if (typingRef) off(typingRef);
             textArea.value = "";
+            document.getElementById('qr-container').style.display = 'none';
+            btnOpenLink.style.display = 'none';
+            
+            // Clear URL if joined via QR code
+            window.history.pushState({}, document.title, window.location.pathname);
             showScreen('screen-home');
         }
 
@@ -257,12 +366,10 @@
         document.getElementById('btn-cancel-join').addEventListener('click', () => showScreen('screen-home'));
         document.getElementById('btn-leave-room').addEventListener('click', leaveRoom);
 
-        // Join Logic
+        // Join Logic (Manual entry)
         codeInputs.forEach((input, index) => {
             input.addEventListener('input', (e) => {
-                if (e.target.value.length === 1 && index < 3) {
-                    codeInputs[index + 1].focus();
-                }
+                if (e.target.value.length === 1 && index < 3) codeInputs[index + 1].focus();
                 
                 let enteredCode = "";
                 codeInputs.forEach(inp => enteredCode += inp.value);
@@ -276,44 +383,93 @@
             });
 
             input.addEventListener('keydown', (e) => {
-                if (e.key === 'Backspace' && e.target.value === '' && index > 0) {
-                    codeInputs[index - 1].focus();
-                }
+                if (e.key === 'Backspace' && e.target.value === '' && index > 0) codeInputs[index - 1].focus();
             });
         });
+
+        // --- FEATURE 3: Auto-Join from QR Code URL ---
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomParam = urlParams.get('room');
+        if (roomParam && roomParam.length === 4) {
+            currentCode = roomParam;
+            document.getElementById('display-code').innerText = currentCode;
+            document.getElementById('qr-container').style.display = 'none'; // Hide QR if they just joined
+            connectToRoom(currentCode);
+            showScreen('screen-room');
+        }
+        // ---------------------------------------------
 
         // Firebase Sync Connection
         function connectToRoom(roomCode) {
             currentRoomRef = ref(db, 'rooms/' + roomCode);
+            typingRef = ref(db, 'typing/' + roomCode);
             
+            // Listen for text updates
             onValue(currentRoomRef, (snapshot) => {
                 if (!isTyping) {
                     const data = snapshot.val();
                     if(data !== "Waiting for text...") {
                         textArea.value = data || "";
+                        checkIfLink(data || ""); // Check for Smart Link
                     }
                 }
             }, (error) => {
                 alert("Connection lost: " + error.message);
                 leaveRoom();
             });
+
+            // Listen for typing indicator
+            onValue(typingRef, (snapshot) => {
+                if (snapshot.val() === true && !isTyping) {
+                    typingIndicator.style.display = 'block';
+                } else {
+                    typingIndicator.style.display = 'none';
+                }
+            });
         }
+
+        // --- FEATURE 4: Smart Link Detector ---
+        function checkIfLink(text) {
+            text = text.trim();
+            // Basic check if it looks like a URL
+            const urlPattern = /^(https?:\/\/[^\s]+)|(www\.[^\s]+)$/i;
+            if (urlPattern.test(text)) {
+                btnOpenLink.style.display = 'block';
+                btnOpenLink.onclick = () => {
+                    let finalUrl = text;
+                    if (!finalUrl.startsWith('http')) finalUrl = 'https://' + finalUrl;
+                    window.open(finalUrl, '_blank');
+                };
+            } else {
+                btnOpenLink.style.display = 'none';
+            }
+        }
+        // --------------------------------------
 
         textArea.addEventListener('input', (e) => {
             updateFirebase(e.target.value);
+            
+            // Trigger "Is Typing" for 1.5 seconds
+            if (typingRef) {
+                set(typingRef, true);
+                clearTimeout(typingTimeout);
+                typingTimeout = setTimeout(() => {
+                    set(typingRef, false);
+                }, 1500);
+            }
         });
 
         function updateFirebase(text) {
             if (!currentRoomRef) return;
             isTyping = true;
             syncStatus.innerText = "🔄 Syncing...";
+            checkIfLink(text); // Check local typing for links too
             
             set(currentRoomRef, text).then(() => {
                 isTyping = false;
                 syncStatus.innerText = "🟢 Synced";
             }).catch((error) => {
                 syncStatus.innerText = "❌ Sync Error";
-                alert("Could not sync text. Error: " + error.message);
             });
         }
 
