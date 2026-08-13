@@ -126,8 +126,18 @@
             background: var(--clip-bg); padding: 12px; border-radius: 12px;
             word-wrap: break-word; font-size: 16px; position: relative;
         }
-        .clip-img { max-width: 100%; border-radius: 8px; margin-top: 5px; }
-        .clip-actions { display: flex; gap: 10px; margin-top: 8px; }
+        
+        /* NEW IMAGE STYLING: Creates the small neat thumbnail */
+        .clip-img { 
+            max-height: 150px; 
+            width: auto; 
+            border-radius: 8px; 
+            margin-top: 5px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            display: block;
+        }
+        
+        .clip-actions { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
         .clip-btn {
             background: #007aff; color: white; border: none; padding: 6px 12px;
             border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer;
@@ -216,7 +226,6 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        // ONLY the database is imported now! No storage needed.
         import { getDatabase, ref, onValue, set, push, remove, off } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
         const firebaseConfig = {
@@ -386,7 +395,7 @@
             }
         });
 
-        // --- Sending Clips (Text & BASE64 IMAGE) ---
+        // --- Sending Clips ---
         function sendTextClip() {
             const text = composeText.value.trim();
             if (text === "") return;
@@ -420,7 +429,7 @@
             }
         });
 
-        // The Base64 Image Magic! (No Storage required)
+        // Image Base64 Processing
         function uploadImageFile(file) {
             uploadStatus.style.display = 'block';
             
@@ -432,7 +441,6 @@
                     let width = img.width;
                     let height = img.height;
                     
-                    // Cap the size so it fits perfectly in the free text database
                     const MAX_SIZE = 1200;
                     if (width > height && width > MAX_SIZE) {
                         height *= MAX_SIZE / width;
@@ -447,7 +455,6 @@
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
                     
-                    // Convert back to a text string (Base64 JPEG)
                     const base64String = canvas.toDataURL('image/jpeg', 0.8);
                     
                     push(clipsRef, { type: 'image', content: base64String, timestamp: Date.now() })
@@ -476,11 +483,11 @@
                 bubble.innerText = clip.content;
                 const copyBtn = document.createElement('button');
                 copyBtn.className = 'clip-btn';
-                copyBtn.innerText = 'Copy';
+                copyBtn.innerText = 'Copy Text';
                 copyBtn.onclick = () => {
                     navigator.clipboard.writeText(clip.content);
                     copyBtn.innerText = 'Copied!';
-                    setTimeout(() => copyBtn.innerText = 'Copy', 2000);
+                    setTimeout(() => copyBtn.innerText = 'Copy Text', 2000);
                 };
                 actionsDiv.appendChild(copyBtn);
 
@@ -504,14 +511,48 @@
                 img.className = 'clip-img';
                 bubble.appendChild(img);
 
+                // Copy Image Button (Translates Base64 to a format the clipboard accepts)
+                const copyImgBtn = document.createElement('button');
+                copyImgBtn.className = 'clip-btn';
+                copyImgBtn.innerText = 'Copy Image';
+                copyImgBtn.onclick = () => {
+                    const imgObj = new Image();
+                    imgObj.src = clip.content;
+                    imgObj.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = imgObj.width;
+                        canvas.height = imgObj.height;
+                        canvas.getContext('2d').drawImage(imgObj, 0, 0);
+                        canvas.toBlob((blob) => {
+                            try {
+                                navigator.clipboard.write([
+                                    new ClipboardItem({ 'image/png': blob })
+                                ]).then(() => {
+                                    copyImgBtn.innerText = 'Copied!';
+                                    setTimeout(() => copyImgBtn.innerText = 'Copy Image', 2000);
+                                });
+                            } catch(err) {
+                                alert("Your browser blocks copying images directly. Use the Download button instead.");
+                            }
+                        }, 'image/png');
+                    };
+                };
+                actionsDiv.appendChild(copyImgBtn);
+
+                // Dedicated Download Button
                 const downBtn = document.createElement('button');
-                downBtn.className = 'clip-btn';
-                downBtn.innerText = 'Open Full Size';
+                downBtn.className = 'clip-btn link-btn';
+                downBtn.innerText = 'Download';
                 downBtn.onclick = () => {
-                    const newTab = window.open();
-                    newTab.document.write('<img src="' + clip.content + '" style="max-width: 100%;">');
+                    const a = document.createElement('a');
+                    a.href = clip.content;
+                    a.download = 'Clipboard_Image_' + Date.now() + '.jpg';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
                 };
                 actionsDiv.appendChild(downBtn);
+                
                 bubble.appendChild(actionsDiv);
             }
             feed.appendChild(bubble);
