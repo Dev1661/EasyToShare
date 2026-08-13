@@ -210,14 +210,14 @@
             <textarea id="compose-text" placeholder="Type or paste (Ctrl+V) text/images..."></textarea>
             <button class="btn-icon btn-send" id="btn-send">⬆️</button>
         </div>
-        <div id="upload-status" class="upload-status">Uploading image...</div>
+        <div id="upload-status" class="upload-status">Processing image...</div>
     </div>
 
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        // ONLY the database is imported now! No storage needed.
         import { getDatabase, ref, onValue, set, push, remove, off } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-        import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDCi33nEcPYW3k1AticNFE8lA_JaST73gg",
@@ -231,7 +231,6 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-        const storage = getStorage(app);
 
         // Globals
         let currentCode = "";
@@ -273,7 +272,6 @@
         function reportActivity() {
             if (!currentCode || !activityRef) return;
             const now = Date.now();
-            // Only write to Firebase if it's been more than 5 seconds since last report to save data
             if (now - lastActivityTime > 5000) {
                 lastActivityTime = now;
                 set(activityRef, now);
@@ -287,12 +285,10 @@
             const twentyFiveMins = 25 * 60 * 1000;
 
             if (elapsed >= thirtyMins) {
-                // Time's up! Nuke the room.
                 remove(ref(db, 'rooms/' + currentCode));
                 alert("Room self-destructed due to 30 minutes of inactivity to protect your data.");
                 leaveRoom();
             } else if (elapsed >= twentyFiveMins) {
-                // Show Warning Banner
                 timerBanner.style.display = 'block';
                 const remaining = thirtyMins - elapsed;
                 const mins = Math.floor(remaining / 60000);
@@ -303,17 +299,14 @@
             }
         }
 
-        // Listen for ANY physical movement to reset the timer
         document.addEventListener('mousemove', reportActivity);
         document.addEventListener('keydown', reportActivity);
         document.addEventListener('touchstart', reportActivity);
-        // ------------------------------------------
 
         // --- Room Management ---
         function hostRoom() {
             currentCode = Math.floor(1000 + Math.random() * 9000).toString();
             
-            // Generate QR Code
             const joinUrl = window.location.origin + window.location.pathname + "?room=" + currentCode;
             document.getElementById('qr-code-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(joinUrl)}`;
             document.getElementById('qr-container').style.display = 'block';
@@ -322,7 +315,6 @@
             showScreen('screen-room');
         }
 
-        // Auto-Join from QR
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('room') && urlParams.get('room').length === 4) {
             connectToRoom(urlParams.get('room'));
@@ -336,7 +328,6 @@
         });
         document.getElementById('btn-cancel-join').addEventListener('click', () => showScreen('screen-home'));
         
-        // Manual Join
         codeInputs.forEach((input, index) => {
             input.addEventListener('input', (e) => {
                 if (e.target.value.length === 1 && index < 3) codeInputs[index + 1].focus();
@@ -352,7 +343,6 @@
             });
         });
 
-        // Connection
         function connectToRoom(code) {
             currentCode = code;
             document.getElementById('display-code').innerText = code;
@@ -360,24 +350,20 @@
             clipsRef = ref(db, 'rooms/' + code + '/clips');
             activityRef = ref(db, 'rooms/' + code + '/lastActivity');
 
-            // Force activity update on join
             set(activityRef, Date.now());
 
-            // Listen for other device's activity to sync the timer
             onValue(activityRef, (snapshot) => {
                 if (snapshot.exists()) lastActivityTime = snapshot.val();
             });
 
-            // Start the Screensaver checker
             idleInterval = setInterval(checkIdleStatus, 1000);
 
-            // Listen for new clips
             onValue(clipsRef, (snapshot) => {
                 feed.innerHTML = '';
                 const data = snapshot.val();
                 if (data) {
                     Object.values(data).forEach(clip => addClipToUI(clip));
-                    feed.scrollTop = feed.scrollHeight; // Auto-scroll to bottom
+                    feed.scrollTop = feed.scrollHeight;
                 }
             });
         }
@@ -389,20 +375,18 @@
             currentCode = "";
             document.getElementById('qr-container').style.display = 'none';
             timerBanner.style.display = 'none';
-            window.history.pushState({}, document.title, window.location.pathname); // Clear URL
+            window.history.pushState({}, document.title, window.location.pathname);
             showScreen('screen-home');
         }
         document.getElementById('btn-leave-room').addEventListener('click', leaveRoom);
 
-        // Clear All Button
         document.getElementById('btn-clear-all').addEventListener('click', () => {
             if (confirm("Delete all history?")) {
                 remove(clipsRef);
             }
         });
 
-        // --- Sending Clips (Text & Image) ---
-        
+        // --- Sending Clips (Text & BASE64 IMAGE) ---
         function sendTextClip() {
             const text = composeText.value.trim();
             if (text === "") return;
@@ -412,7 +396,6 @@
         }
         document.getElementById('btn-send').addEventListener('click', sendTextClip);
         
-        // Send on Enter key
         composeText.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -420,54 +403,77 @@
             }
         });
 
-        // Upload Photo Button (For iPhone)
         document.getElementById('btn-attach').addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', (e) => {
             if (e.target.files[0]) uploadImageFile(e.target.files[0]);
         });
 
-        // Paste Event (For Windows Ctrl+V screenshots)
         document.addEventListener('paste', (e) => {
             if (!currentCode) return;
             const items = (e.clipboardData || e.originalEvent.clipboardData).items;
             for (let item of items) {
                 if (item.type.indexOf('image') === 0) {
-                    e.preventDefault(); // Stop image from pasting into text box as weird text
+                    e.preventDefault();
                     const file = item.getAsFile();
                     uploadImageFile(file);
                 }
             }
         });
 
+        // The Base64 Image Magic! (No Storage required)
         function uploadImageFile(file) {
             uploadStatus.style.display = 'block';
-            const uniqueName = Date.now() + '-' + file.name;
-            const imageRef = storageRef(storage, `rooms/${currentCode}/${uniqueName}`);
             
-            uploadBytes(imageRef, file).then((snapshot) => {
-                getDownloadURL(snapshot.ref).then((downloadURL) => {
-                    push(clipsRef, { type: 'image', content: downloadURL, timestamp: Date.now() });
-                    uploadStatus.style.display = 'none';
-                    reportActivity();
-                });
-            }).catch(err => {
-                alert("Upload failed! Did you enable Firebase Storage?");
-                uploadStatus.style.display = 'none';
-            });
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    // Cap the size so it fits perfectly in the free text database
+                    const MAX_SIZE = 1200;
+                    if (width > height && width > MAX_SIZE) {
+                        height *= MAX_SIZE / width;
+                        width = MAX_SIZE;
+                    } else if (height > MAX_SIZE) {
+                        width *= MAX_SIZE / height;
+                        height = MAX_SIZE;
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // Convert back to a text string (Base64 JPEG)
+                    const base64String = canvas.toDataURL('image/jpeg', 0.8);
+                    
+                    push(clipsRef, { type: 'image', content: base64String, timestamp: Date.now() })
+                        .then(() => {
+                            uploadStatus.style.display = 'none';
+                            reportActivity();
+                        })
+                        .catch(err => {
+                            alert("Failed to sync image! It might be too large for the database.");
+                            uploadStatus.style.display = 'none';
+                        });
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
         }
 
         // --- UI Builder ---
         function addClipToUI(clip) {
             const bubble = document.createElement('div');
             bubble.className = 'clip-bubble';
-
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'clip-actions';
 
             if (clip.type === 'text') {
                 bubble.innerText = clip.content;
-
-                // Copy Button
                 const copyBtn = document.createElement('button');
                 copyBtn.className = 'clip-btn';
                 copyBtn.innerText = 'Copy';
@@ -478,7 +484,6 @@
                 };
                 actionsDiv.appendChild(copyBtn);
 
-                // Smart Link Check
                 const urlPattern = /^(https?:\/\/[^\s]+)|(www\.[^\s]+)$/i;
                 if (urlPattern.test(clip.content.trim())) {
                     const linkBtn = document.createElement('button');
@@ -491,7 +496,6 @@
                     };
                     actionsDiv.appendChild(linkBtn);
                 }
-
                 bubble.appendChild(actionsDiv);
 
             } else if (clip.type === 'image') {
@@ -500,19 +504,18 @@
                 img.className = 'clip-img';
                 bubble.appendChild(img);
 
-                // Download Button for Image
                 const downBtn = document.createElement('button');
                 downBtn.className = 'clip-btn';
                 downBtn.innerText = 'Open Full Size';
-                downBtn.onclick = () => window.open(clip.content, '_blank');
-                
+                downBtn.onclick = () => {
+                    const newTab = window.open();
+                    newTab.document.write('<img src="' + clip.content + '" style="max-width: 100%;">');
+                };
                 actionsDiv.appendChild(downBtn);
                 bubble.appendChild(actionsDiv);
             }
-
             feed.appendChild(bubble);
         }
-
     </script>
 </body>
 </html>
