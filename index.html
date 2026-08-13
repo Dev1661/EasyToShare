@@ -189,9 +189,11 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getDatabase, ref, onValue, set, off } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
+        // THE MISSING LINK HAS BEEN ADDED HERE: databaseURL
         const firebaseConfig = {
             apiKey: "AIzaSyDCi33nEcPYW3k1AticNFE8lA_JaST73gg",
             authDomain: "easytoshare.firebaseapp.com",
+            databaseURL: "https://easytoshare-default-rtdb.firebaseio.com",
             projectId: "easytoshare",
             storageBucket: "easytoshare.firebasestorage.app",
             messagingSenderId: "792674310312",
@@ -220,7 +222,7 @@
             }
         }
 
-        // --- NEW: Error Handling Added to Host ---
+        // Host Logic with Error Alert
         function hostRoom() {
             const hostBtn = document.getElementById('btn-host-room');
             const originalText = hostBtn.innerText;
@@ -229,7 +231,7 @@
             currentCode = Math.floor(1000 + Math.random() * 9000).toString();
             
             const newRoomRef = ref(db, 'rooms/' + currentCode);
-            set(newRoomRef, "")
+            set(newRoomRef, "Waiting for text...")
                 .then(() => {
                     document.getElementById('display-code').innerText = currentCode;
                     hostBtn.innerText = originalText;
@@ -238,7 +240,7 @@
                 })
                 .catch((error) => {
                     hostBtn.innerText = originalText;
-                    alert("Error creating room! Please check your Firebase Database Rules. Error: " + error.message);
+                    alert("Error creating room! Details: " + error.message);
                 });
         }
 
@@ -255,6 +257,7 @@
         document.getElementById('btn-cancel-join').addEventListener('click', () => showScreen('screen-home'));
         document.getElementById('btn-leave-room').addEventListener('click', leaveRoom);
 
+        // Join Logic
         codeInputs.forEach((input, index) => {
             input.addEventListener('input', (e) => {
                 if (e.target.value.length === 1 && index < 3) {
@@ -279,17 +282,19 @@
             });
         });
 
-        // --- NEW: Error Handling added to Syncing ---
+        // Firebase Sync Connection
         function connectToRoom(roomCode) {
             currentRoomRef = ref(db, 'rooms/' + roomCode);
             
             onValue(currentRoomRef, (snapshot) => {
                 if (!isTyping) {
                     const data = snapshot.val();
-                    textArea.value = data || "";
+                    if(data !== "Waiting for text...") {
+                        textArea.value = data || "";
+                    }
                 }
             }, (error) => {
-                alert("Connection lost or denied by database: " + error.message);
+                alert("Connection lost: " + error.message);
                 leaveRoom();
             });
         }
