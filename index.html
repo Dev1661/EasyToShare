@@ -143,7 +143,6 @@
             font-size: 12px;
             color: #888;
         }
-
     </style>
 </head>
 <body>
@@ -152,8 +151,9 @@
 
     <!-- SCREEN 1: HOME -->
     <div id="screen-home" class="screen active">
-        <button class="btn-large btn-host" onclick="hostRoom()">Host a Room</button>
-        <button class="btn-large btn-join" onclick="showScreen('screen-join')">Join a Room</button>
+        <!-- Notice the onclick commands are gone, replaced with unique IDs -->
+        <button class="btn-large btn-host" id="btn-host-room">Host a Room</button>
+        <button class="btn-large btn-join" id="btn-goto-join">Join a Room</button>
     </div>
 
     <!-- SCREEN 2: JOIN -->
@@ -165,14 +165,14 @@
             <input type="tel" class="code-input" maxlength="1" id="digit-3">
             <input type="tel" class="code-input" maxlength="1" id="digit-4">
         </div>
-        <button class="btn-leave" onclick="showScreen('screen-home')">Cancel</button>
+        <button class="btn-leave" id="btn-cancel-join">Cancel</button>
     </div>
 
     <!-- SCREEN 3: ROOM -->
     <div id="screen-room" class="screen">
         <div class="room-header">
             <div>Code: <span class="room-code-display" id="display-code">----</span></div>
-            <button class="btn-leave" onclick="leaveRoom()">Leave</button>
+            <button class="btn-leave" id="btn-leave-room">Leave</button>
         </div>
         
         <textarea id="shared-text" placeholder="Type or paste text here to share..."></textarea>
@@ -212,39 +212,49 @@
         const syncStatus = document.getElementById('sync-status');
         const codeInputs = document.querySelectorAll('.code-input');
 
-        // Screen Navigation
-        window.showScreen = function(screenId) {
+        // Functions to change screens and handle rooms
+        function showScreen(screenId) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(screenId).classList.add('active');
             if(screenId === 'screen-join') {
                 codeInputs[0].focus();
-                codeInputs.forEach(input => input.value = ''); // clear previous inputs
+                codeInputs.forEach(input => input.value = ''); 
             }
         }
 
-        // Host Logic
-        window.hostRoom = function() {
-            // Generate random 4 digit code (1000 - 9999)
+        function hostRoom() {
             currentCode = Math.floor(1000 + Math.random() * 9000).toString();
             document.getElementById('display-code').innerText = currentCode;
             
-            // Wipe any old data that might have existed at this number
             const newRoomRef = ref(db, 'rooms/' + currentCode);
             set(newRoomRef, "").then(() => {
                 connectToRoom(currentCode);
-                window.showScreen('screen-room');
+                showScreen('screen-room');
             });
         }
+
+        function leaveRoom() {
+            if (currentRoomRef) {
+                off(currentRoomRef); // Stop listening to this room
+            }
+            textArea.value = "";
+            showScreen('screen-home');
+        }
+
+        // --- NEW: Event Listeners for the Navigation Buttons ---
+        document.getElementById('btn-host-room').addEventListener('click', hostRoom);
+        document.getElementById('btn-goto-join').addEventListener('click', () => showScreen('screen-join'));
+        document.getElementById('btn-cancel-join').addEventListener('click', () => showScreen('screen-home'));
+        document.getElementById('btn-leave-room').addEventListener('click', leaveRoom);
+        // -------------------------------------------------------
 
         // Join Logic - Auto advance boxes
         codeInputs.forEach((input, index) => {
             input.addEventListener('input', (e) => {
-                // Move to next box if a number is typed
                 if (e.target.value.length === 1 && index < 3) {
                     codeInputs[index + 1].focus();
                 }
                 
-                // Check if all 4 are filled
                 let enteredCode = "";
                 codeInputs.forEach(inp => enteredCode += inp.value);
                 
@@ -252,11 +262,10 @@
                     currentCode = enteredCode;
                     document.getElementById('display-code').innerText = currentCode;
                     connectToRoom(currentCode);
-                    window.showScreen('screen-room');
+                    showScreen('screen-room');
                 }
             });
 
-            // Handle backspace to go to previous box
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Backspace' && e.target.value === '' && index > 0) {
                     codeInputs[index - 1].focus();
@@ -268,22 +277,12 @@
         function connectToRoom(roomCode) {
             currentRoomRef = ref(db, 'rooms/' + roomCode);
             
-            // Listen for changes from the other device
             onValue(currentRoomRef, (snapshot) => {
                 if (!isTyping) {
                     const data = snapshot.val();
                     textArea.value = data || "";
                 }
             });
-        }
-
-        // Leave Room
-        window.leaveRoom = function() {
-            if (currentRoomRef) {
-                off(currentRoomRef); // Stop listening to this room
-            }
-            textArea.value = "";
-            window.showScreen('screen-home');
         }
 
         // Sync text when typing manually
@@ -304,9 +303,9 @@
             });
         }
 
-        // --- BUTTON ACTIONS ---
+        // --- Action Buttons ---
 
-        // 1. Copy Button
+        // Copy Button
         document.getElementById('btn-copy').addEventListener('click', () => {
             navigator.clipboard.writeText(textArea.value).then(() => {
                 const btn = document.getElementById('btn-copy');
@@ -315,13 +314,12 @@
             });
         });
 
-        // 2. Paste Button
+        // Paste Button
         document.getElementById('btn-paste').addEventListener('click', async () => {
             try {
-                // Some browsers prompt the user for permission the first time this runs
                 const text = await navigator.clipboard.readText();
                 textArea.value = text;
-                updateFirebase(text); // Force sync to the other device
+                updateFirebase(text); 
                 
                 const btn = document.getElementById('btn-paste');
                 btn.innerText = "Pasted!";
@@ -331,10 +329,10 @@
             }
         });
 
-        // 3. Clear Button
+        // Clear Button
         document.getElementById('btn-clear').addEventListener('click', () => {
             textArea.value = "";
-            updateFirebase(""); // Delete text on Firebase for both devices
+            updateFirebase(""); 
             
             const btn = document.getElementById('btn-clear');
             btn.innerText = "Cleared!";
