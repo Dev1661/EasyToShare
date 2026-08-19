@@ -127,7 +127,7 @@
             word-wrap: break-word; font-size: 16px; position: relative;
         }
         
-        /* NEW IMAGE STYLING: Creates the small neat thumbnail */
+        /* Thumbnails */
         .clip-img { 
             max-height: 150px; 
             width: auto; 
@@ -163,7 +163,6 @@
         
         #file-input { display: none; }
         .upload-status { width: 100%; text-align: center; font-size: 12px; color: #007aff; display: none; margin-top: 5px;}
-
     </style>
 </head>
 <body>
@@ -191,8 +190,6 @@
 
     <!-- SCREEN 3: ROOM (The Timeline) -->
     <div id="screen-room" class="screen" style="height: 85vh;">
-        
-        <!-- Timer Warning -->
         <div id="timer-banner">Warning: Room self-destructs in <span id="countdown-text">05:00</span> due to inactivity</div>
 
         <div class="room-header">
@@ -208,12 +205,8 @@
             <p>Scan to join instantly</p>
         </div>
         
-        <!-- Chat/Feed Area -->
-        <div id="feed">
-            <!-- Clips will load here -->
-        </div>
+        <div id="feed"></div>
 
-        <!-- Input Box -->
         <div class="input-area">
             <input type="file" id="file-input" accept="image/*">
             <button class="btn-icon" id="btn-attach">📷</button>
@@ -227,6 +220,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getDatabase, ref, onValue, set, push, remove, off } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+        // IMPORT AUTH MODULE
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDCi33nEcPYW3k1AticNFE8lA_JaST73gg",
@@ -240,13 +235,19 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
+        
+        // --- NEW: INVISIBLE LOGIN PROCESS ---
+        const auth = getAuth(app);
+        signInAnonymously(auth).catch((error) => {
+            console.error("Authentication failed:", error);
+        });
+        // ------------------------------------
 
         // Globals
         let currentCode = "";
         let clipsRef = null;
         let activityRef = null;
         
-        // Timer Globals
         let lastActivityTime = Date.now();
         let idleInterval = null;
 
@@ -259,7 +260,7 @@
         const countdownText = document.getElementById('countdown-text');
         const codeInputs = document.querySelectorAll('.code-input');
 
-        // --- Dark Mode ---
+        // Dark Mode
         const themeToggle = document.getElementById('theme-toggle');
         if (localStorage.getItem('theme') === 'dark') {
             document.body.classList.add('dark-mode');
@@ -277,13 +278,13 @@
             document.getElementById(screenId).classList.add('active');
         }
 
-        // --- Idle Timer Logic (The Screensaver) ---
+        // Idle Timer Logic
         function reportActivity() {
             if (!currentCode || !activityRef) return;
             const now = Date.now();
             if (now - lastActivityTime > 5000) {
                 lastActivityTime = now;
-                set(activityRef, now);
+                set(activityRef, now).catch(()=> {}); // Catch error if attempting to write before auth finishes
             }
         }
 
@@ -312,10 +313,9 @@
         document.addEventListener('keydown', reportActivity);
         document.addEventListener('touchstart', reportActivity);
 
-        // --- Room Management ---
+        // Room Management
         function hostRoom() {
             currentCode = Math.floor(1000 + Math.random() * 9000).toString();
-            
             const joinUrl = window.location.origin + window.location.pathname + "?room=" + currentCode;
             document.getElementById('qr-code-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(joinUrl)}`;
             document.getElementById('qr-container').style.display = 'block';
@@ -359,7 +359,10 @@
             clipsRef = ref(db, 'rooms/' + code + '/clips');
             activityRef = ref(db, 'rooms/' + code + '/lastActivity');
 
-            set(activityRef, Date.now());
+            set(activityRef, Date.now()).catch(() => {
+                // If auth takes an extra millisecond, wait and try again
+                setTimeout(() => set(activityRef, Date.now()), 1000);
+            });
 
             onValue(activityRef, (snapshot) => {
                 if (snapshot.exists()) lastActivityTime = snapshot.val();
@@ -395,7 +398,7 @@
             }
         });
 
-        // --- Sending Clips ---
+        // Sending Clips
         function sendTextClip() {
             const text = composeText.value.trim();
             if (text === "") return;
@@ -463,7 +466,7 @@
                             reportActivity();
                         })
                         .catch(err => {
-                            alert("Failed to sync image! It might be too large for the database.");
+                            alert("Failed to sync image! Make sure Firebase rules are updated correctly.");
                             uploadStatus.style.display = 'none';
                         });
                 };
@@ -472,7 +475,7 @@
             reader.readAsDataURL(file);
         }
 
-        // --- UI Builder ---
+        // UI Builder
         function addClipToUI(clip) {
             const bubble = document.createElement('div');
             bubble.className = 'clip-bubble';
@@ -511,7 +514,6 @@
                 img.className = 'clip-img';
                 bubble.appendChild(img);
 
-                // Copy Image Button (Translates Base64 to a format the clipboard accepts)
                 const copyImgBtn = document.createElement('button');
                 copyImgBtn.className = 'clip-btn';
                 copyImgBtn.innerText = 'Copy Image';
@@ -539,7 +541,6 @@
                 };
                 actionsDiv.appendChild(copyImgBtn);
 
-                // Dedicated Download Button
                 const downBtn = document.createElement('button');
                 downBtn.className = 'clip-btn link-btn';
                 downBtn.innerText = 'Download';
